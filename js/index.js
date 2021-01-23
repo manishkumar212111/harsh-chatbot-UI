@@ -1,27 +1,60 @@
+const ApibaseURL = 'https://limitless-plateau-08631.herokuapp.com/';
+// const ApibaseURL = 'http://localhost:5000/';
+const staticBaseUrl = 'https://chatbot.tiiny.site/';
+// const staticBaseUrl = ''
+function addCSSLink(href){
+    var head  = document.getElementsByTagName('head')[0];
+    var link  = document.createElement('link');
+    link.rel  = 'stylesheet';
+    link.type = 'text/css';
+    link.href = staticBaseUrl + href;
+    link.media = 'all';
+    head.appendChild(link);
+}
 
-const baseURL = 'https://limitless-plateau-08631.herokuapp.com/';
-// const baseURL = 'http://localhost:5000/';
+addCSSLink('css/botui.min.css');
+addCSSLink('css/botui-theme.css');
+addCSSLink('css/index.css');
+
+async function addJsFile( url, callback ) {
+    var script = document.createElement( "script" )
+    script.type = "text/javascript";
+    if(script.readyState) {  // only required for IE <9
+        script.onreadystatechange = async function() {
+        if ( script.readyState === "loaded" || script.readyState === "complete" ) {
+            script.onreadystatechange = null;
+            await callback();
+        }
+        };
+    } else {  //Others
+        script.onload = async function() {
+        await callback();
+        };
+    }
+
+    script.src = staticBaseUrl + url;
+    document.getElementsByTagName( "head" )[0].appendChild( script );
+}
 
 
+
+var configs;
 
 async function getBotReply(chatSchemId){
     return new Promise(async (resolve , reject) => {
 
-        const response = await fetch(baseURL +'v1/chatSchema/get?chatSchemaId=' + chatSchemId);
+        const response = await fetch(ApibaseURL +'v1/chatSchema/get?chatSchemaId=' + chatSchemId);
         const botReplyJson = await response.json(); //extract JSON from the http response
-        console.log(botReplyJson);
         if(botReplyJson && botReplyJson.content){
-            resolve({id : botReplyJson.id , content : botReplyJson.content , options : botReplyJson.response ? botReplyJson.response : {}})
+            resolve({id : botReplyJson.id , content : botReplyJson.content , questions : botReplyJson.response ? botReplyJson.response : []})
         }
         reject(false)
     })
-
-    // do something with myJson
 }
 
 async function storeUserResponse (chatDetail) {
    
-    fetch(baseURL +'v1/chat/create', {
+    fetch(ApibaseURL +'v1/chat/create', {
       method: "POST",
       body: JSON.stringify(chatDetail),
 
@@ -51,9 +84,9 @@ function getUserId(){
     }
 }
 
-var botui = new BotUI('my-botui-app');
-
-async function chatInit(chatSchemId){
+var botui;
+async function chatInit(chatSchemId , configs = {} , isBotUILoaded){
+    botui = isBotUILoaded ? botui : new BotUI(configs.containerId ? configs.containerId : 'my-botui');
 
     botui.message.bot({
         content: 0,
@@ -67,45 +100,75 @@ async function chatInit(chatSchemId){
                 cssClass : 'hide'
             });
             addBotReply(currentChat , botui , function(){
-                addOptions(currentChat , botui)
+                setTimeout(() => {
+                    let documentObj = document.querySelectorAll('.botui-message')
+                    if(documentObj && documentObj.length){
+                        documentObj[documentObj.length - 1] && documentObj[documentObj.length - 1].scrollIntoView({behavior : "smooth" , block:"start"})
+                    }
+                    console.log(documentObj);
+                        
+                }, 100);
+                addUserReply(currentChat , botui)
             });
         });
     })
 
 }
 
-function addOptions(currentChat , botui){
-    console.log(currentChat)
-    console.log(Array.isArray(currentChat.options.items))
-    if(currentChat && currentChat.options){
-        if(Array.isArray(currentChat.options.items)){
-            botui.action.button({
-                addMessage : true,
-                action: currentChat.options.items,
-                delay: 150,            
-            }).then(async (res) =>{
-                chatInit(res.value);
-                const detailToStore = {
-                    bot : currentChat.id,
-                    response : res,
-                    user_id : getUserId()                 
+function addUserReply(currentChat , botui){
+
+    if(currentChat && currentChat.questions && Array.isArray(currentChat.questions)){
+
+            currentChat.questions.forEach(async (element) => {
+                if(element.type == 'input'){
+                    for(const item in element.items) {
+                        
+                        await botui.action.text({
+                            action: {
+                              placeholder: element.items[item].placeHolder
+                            }
+                          }).then(async function (res) { // will be called when it is submitted.
+                            const detailToStore = {
+                                bot : currentChat.id,
+                                response : {...res , ...{ field : element.items[item].field}},
+                                user_id : getUserId()
+                            }
+                            await storeUserResponse(detailToStore);
+                            element.items[item].id && chatInit(element.items[item].id , configs , true); 
+                          })
+                    }
+                } else {
+                    botui.action.button({
+                        addMessage : true,
+                        action: element.items,
+                        delay: 150,            
+                    }).then(async (res) =>{
+                        chatInit(res.value , configs , true);
+                        const detailToStore = {
+                            bot : currentChat.id,
+                            response : res,
+                            user_id : getUserId()                 
+                        }
+                        await storeUserResponse(detailToStore);
+                    })
                 }
-                await storeUserResponse(detailToStore);
-            })
-        } 
+                
+            })        
+            
     }
 }
 
 function addBotReply(currentChat , botui , cb) {
 
-    let contentCompleteFlag = 0;
     if(currentChat && currentChat.content){
         Array.isArray(currentChat.content) && currentChat.content.forEach((element , index) => {
+            
             botui.message.bot({
-                content: element.item,
-                type : element.type,
+                content: element.type == 'image'  ? '![product image]('+element.item+')' :  element.item,
+                // type : element.type,
                 delay: (index + 1) * 1,
             })
+            
             currentChat.content.length == (index + 1) && cb();        
         });
     } else {
@@ -114,69 +177,28 @@ function addBotReply(currentChat , botui , cb) {
 }
 
 
-chatInit(1);
-// // Start Bot
-// // First Messages
-// botui.message.bot({
-//     content: 'Hi there! 👋',
-//     loading: true,
-//     delay: 3000,
-// }).then(function () {
-//     return botui.message.bot({
-//         loading: true,
-//         delay: 1500,
-//         content: "I'm Tobi, a web developer from germany.",
-//     });
-// }).then(function () {
-//     return botui.message.bot({
-//         loading: true,
-//         delay: 1500,
-//         content: "So i wanted to share this cool jQuery plugin with you.",
-//     });
-// }).then(function () {
-//     return botui.message.bot({
-//         loading: true,
-//         delay: 1500,
-//         content: "[BotUI](http://docs.botui.org/)",
-//     });
-// }).then(function () {
-//     return botui.message.bot({
-//         loading: true,
-//         delay: 1500,
-//         content: "Pretty cool plugin or?",
-//     });
-// }).then(function () {
-//   return botui.action.button({
-//         delay: 1500,
-//         loading: true,
-//         addMessage: true,
-//         action: [{
-//             text: 'Yes!',
-//             value: 'yes'
-//         }, {
-//             text: 'No.',
-//             value: 'no'
-//         }]
-//     })
-// }).then(function (res) {
-//   if (res.value == 'yes') {
-//      return botui.message.bot({
-//                 loading: true,
-//                 delay: 1500,
-//                 content: "I quite agree!",
-//             });
-//   } else {
-//     return botui.message.bot({
-//                 loading: true,
-//                 delay: 1500,
-//                 content: "Okay, I'm sorry ...",
-//             });
-//   }
-// }).then(function () {
-//   return botui.message.bot({
-//                 loading: true,
-//                 delay: 1500,
-//                 content: "Bye, I need to go know.",
-//             });
-// })
 
+window.initChat = async (initialChatId , configs = {}) => {
+
+    // var element = document.getElementById(configs.containerId ? configs.containerId : 'my-botui');
+    
+    // var devEl = document.createElement("div");
+    // var node = document.createElement('span');
+    // node.append(document.createTextNode("ChatBot"))
+    // devEl.appendChild(node);
+    
+    // element && element.appendChild(devEl);
+    
+    await addJsFile('js/botui.min.js' ,async function() {
+        await addJsFile('js/vue.min.js' , async function() {
+            this.configs = configs;
+            await chatInit(typeof initialChatId != 'undefined' ? initialChatId : 1 , configs);
+                        
+        })
+    })
+    
+}
+
+
+
+// window.closeChat = 

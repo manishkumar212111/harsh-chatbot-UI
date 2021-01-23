@@ -1,0 +1,19 @@
+ChatSchema is used to define flow in chatBot
+
+{"_id":"1",
+    "content":
+        [
+            {"type": "html","item":"Welcome to chat bot"},
+            {"type": "image","item":"<image url>"}
+            {"type": "url","item":"<url>"}
+            {"type": "embed","item":"<video url>"}
+            {"type" : "input","sub_type": "text", "id" : "name" , "placeHolder" : "Please enter your name" }
+        ],
+    "response": { 
+            "type":"option",
+            "items":[
+                {"_id":"2","text":"thanks","value":"2"},
+                {"_id":"3","text":"No thanks","value":"3"}
+            ]
+    }
+}

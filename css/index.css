@@ -1,4 +1,23 @@
+body{
+    margin: 0px;
+}
+
+.bot-header {
+    text-align: center;
+    background: blue;
+    color: white;
+    height: 53px;
+    position: inherit;
+    width: 100%;
+    top: 0;
+}
 .botui-app-container {
+    /* position: absolute; */
+    box-shadow: 13px 13px 28px 2px rgba(0, 0, 0, 0.035);
+    /* border-style: ridge; */
+    min-height: auto;
+    /* margin: 3px; */
+    border-radius: 10px;
     height: auto;
     /* width: 700px; */
     overflow-y: auto;

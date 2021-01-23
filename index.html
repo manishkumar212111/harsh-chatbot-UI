@@ -7,23 +7,41 @@
     <title>Chatbot</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     
-    <link href="css/botui.min.css" rel="stylesheet" />
-    <link href="css/botui-theme.css" rel="stylesheet" />
-    <link href="css/index.css" rel="stylesheet" />
-
-    <script src="js/botui.min.js"></script>
-    <script src="js/vue.min.js"></script>
-
 </head>
 <body>
-    <p>This is chat bot</p>
     <div class="botui-app-container">
-        <div id="my-botui-app">
+        <div id="my-botui">
             <bot-ui></bot-ui>
         </div>
     </div>
 </body>
 
+    <script>
+        function loadScript( url, callback ) {
+            var script = document.createElement( "script" )
+            script.type = "text/javascript";
+            if(script.readyState) {  // only required for IE <9
+                script.onreadystatechange = function() {
+                if ( script.readyState === "loaded" || script.readyState === "complete" ) {
+                    script.onreadystatechange = null;
+                    callback();
+                }
+                };
+            } else {  //Others
+                script.onload = function() {
+                callback();
+                };
+            }
 
-<script src="js/index.js"></script>
+            script.src = url;
+            document.getElementsByTagName( "head" )[0].appendChild( script );
+        }
+
+
+        // call the function...
+        loadScript('js/index.js',async function() {
+            await window.initChat(1, {containerId : "my-botui"})
+        });
+
+</script>
 </html>
